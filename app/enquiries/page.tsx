@@ -26,7 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import {
-    MoreHorizontal, RefreshCcw, Mail, Phone, Building2, Package, Calendar, StickyNote, IndianRupee, Search,
+    MoreHorizontal, RefreshCcw, Mail, Phone, Building2, Package, Calendar, StickyNote, IndianRupee, Search, Eye, Trash2,
 } from "lucide-react";
 
 interface EnquiryItem {
@@ -78,6 +78,11 @@ export default function EnquiriesPage() {
     const [adminNotes, setAdminNotes] = useState("");
     const [quotedAmount, setQuotedAmount] = useState("");
     const [saving, setSaving] = useState(false);
+
+    // Delete state
+    const [deleteTarget, setDeleteTarget] = useState<Enquiry | null>(null);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const fetchEnquiries = useCallback(async () => {
         setLoading(true);
@@ -170,9 +175,7 @@ export default function EnquiriesPage() {
             accessorKey: "company_name",
             header: "Company",
             cell: ({ row }) => (
-                <Button variant="link" className="text-foreground px-0 h-auto font-medium" onClick={() => openDetail(row.original)}>
-                    {row.original.company_name}
-                </Button>
+                <span className="font-medium">{row.original.company_name}</span>
             ),
             enableHiding: false,
         },
@@ -216,6 +219,17 @@ export default function EnquiriesPage() {
             ),
         },
         {
+            accessorKey: "quoted_amount",
+            header: "Quoted",
+            cell: ({ row }) => (
+                <span className="font-medium">
+                    {row.original.quoted_amount != null
+                        ? `₹${Number(row.original.quoted_amount).toLocaleString("en-IN")}`
+                        : <span className="text-muted-foreground">—</span>}
+                </span>
+            ),
+        },
+        {
             id: "actions",
             cell: ({ row }) => (
                 <DropdownMenu>
@@ -223,14 +237,16 @@ export default function EnquiriesPage() {
                         <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Update Status</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => openDetail(row.original)}>
+                            <Eye className="w-4 h-4 mr-2" /> View
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        {statusOptions.map((s) => (
-                            <DropdownMenuItem key={s} disabled={s === row.original.status} onClick={() => updateStatus(row.original.id, s)}>
-                                <Badge variant="outline" className={`mr-2 ${statusColors[s]}`}>{s}</Badge>
-                                {s === row.original.status && "(current)"}
-                            </DropdownMenuItem>
-                        ))}
+                        <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => { setDeleteTarget(row.original); setDeleteOpen(true); }}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             ),
@@ -375,6 +391,48 @@ export default function EnquiriesPage() {
                                 </DialogFooter>
                             </>
                         )}
+                    </DialogContent>
+                </Dialog>
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Delete Enquiry</DialogTitle>
+                            <DialogDescription>
+                                Are you sure you want to delete enquiry <strong>#{deleteTarget?.id}</strong> from <strong>{deleteTarget?.company_name}</strong>? This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => { setDeleteOpen(false); setDeleteTarget(null); }}>Cancel</Button>
+                            <Button
+                                variant="destructive"
+                                disabled={deleting}
+                                onClick={async () => {
+                                    if (!deleteTarget) return;
+                                    setDeleting(true);
+                                    const toastId = toast.loading("Deleting enquiry...");
+                                    try {
+                                        const res = await fetch(`/api/enquiries/${deleteTarget.id}`, { method: "DELETE" });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                            toast.success("Enquiry deleted", { id: toastId });
+                                            setDeleteOpen(false);
+                                            setDeleteTarget(null);
+                                            fetchEnquiries();
+                                        } else {
+                                            toast.error(data.error || "Failed to delete enquiry", { id: toastId });
+                                        }
+                                    } catch {
+                                        toast.error("Failed to delete enquiry", { id: toastId });
+                                    } finally {
+                                        setDeleting(false);
+                                    }
+                                }}
+                            >
+                                {deleting ? "Deleting..." : "Delete"}
+                            </Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
             </div>

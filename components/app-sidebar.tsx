@@ -10,6 +10,7 @@ import {
   Megaphone,
   Settings,
   Globe,
+  Users,
 } from "lucide-react"
 
 import {
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/enquiries", label: "Enquiries", icon: Mail },
   { href: "/products", label: "Products", icon: Package },
   { href: "/banners", label: "Sale Banners", icon: Megaphone },
+  { href: "/admin-users", label: "Admin Users", icon: Users },
 ]
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {

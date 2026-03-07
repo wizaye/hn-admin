@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { encrypt, hashPassword, getSession } from "@/lib/auth";
+import { hashPassword, getSession } from "@/lib/auth";
 import { createAdminUser, getAdminByEmail, getAdminCount, createAdminUsersTable } from "@/lib/db";
-import { cookies } from "next/headers";
+
+const MAX_ADMINS = 3;
 
 // Password strength validation
 function validatePassword(password: string): string | null {
@@ -54,16 +55,22 @@ export async function POST(request: Request) {
         // Ensure the table exists
         await createAdminUsersTable();
 
-        // Security: Only allow signup if no admins exist OR if the requester is already authenticated
+        // Require authentication for all signups — only existing admins can create new admins
         const adminCount = await getAdminCount();
-        if (adminCount > 0) {
-            const session = await getSession();
-            if (!session?.user) {
-                return NextResponse.json(
-                    { success: false, message: "Signup is restricted. Contact an existing admin for access." },
-                    { status: 403 }
-                );
-            }
+        const session = await getSession();
+
+        if (!session?.user) {
+            return NextResponse.json(
+                { success: false, message: "Authentication required. Please log in as an admin." },
+                { status: 403 }
+            );
+        }
+
+        if (adminCount >= MAX_ADMINS) {
+            return NextResponse.json(
+                { success: false, message: `Maximum of ${MAX_ADMINS} admin accounts allowed` },
+                { status: 403 }
+            );
         }
 
         // Check if an admin with this email already exists
@@ -79,20 +86,7 @@ export async function POST(request: Request) {
         const passwordHash = await hashPassword(password);
         await createAdminUser(name.trim(), email.toLowerCase().trim(), passwordHash);
 
-        // Auto-login after signup: create a session
-        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        const session = await encrypt({ user: { name: name.trim(), email: email.toLowerCase().trim() }, expires: expires.toISOString() });
-
-        const cookieStore = await cookies();
-        cookieStore.set("session", session, {
-            expires,
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            path: "/",
-        });
-
-        return NextResponse.json({ success: true }, { status: 201 });
+        return NextResponse.json({ success: true, message: "Admin created successfully" }, { status: 201 });
     } catch (error) {
         console.error("Signup error:", error);
         return NextResponse.json(

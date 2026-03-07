@@ -1,39 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
     Field,
-    FieldDescription,
     FieldGroup,
     FieldLabel,
-    FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import Link from "next/link";
 import { Settings } from "lucide-react";
 
 function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
-    const [hasAdmins, setHasAdmins] = useState(true);
-    const router = useRouter();
-
-    useEffect(() => {
-        fetch("/api/auth/setup")
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.success && data.adminCount === 0) {
-                    setHasAdmins(false);
-                }
-            })
-            .catch(() => { });
-    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -50,8 +33,8 @@ function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
 
             if (res.ok && data.success) {
                 toast.success("Login successful");
-                router.push("/");
-                router.refresh();
+                // Hard redirect to avoid client-side navigation lag on Netlify
+                window.location.href = "/";
             } else {
                 toast.error(data.message || "Invalid credentials");
             }
@@ -73,23 +56,6 @@ function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
                             </div>
                         </div>
                         <h1 className="text-xl font-bold">Welcome to HN Admin</h1>
-                        <FieldDescription>
-                            {!hasAdmins ? (
-                                <>
-                                    No admin account yet?{" "}
-                                    <Link href="/signup" className="underline underline-offset-4">
-                                        Set up your account
-                                    </Link>
-                                </>
-                            ) : (
-                                <>
-                                    Don&apos;t have an account?{" "}
-                                    <Link href="/signup" className="underline underline-offset-4">
-                                        Sign up
-                                    </Link>
-                                </>
-                            )}
-                        </FieldDescription>
                     </div>
                     <Field>
                         <FieldLabel htmlFor="email">Email</FieldLabel>

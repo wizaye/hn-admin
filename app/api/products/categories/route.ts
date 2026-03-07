@@ -14,7 +14,7 @@ export async function GET() {
     } catch (error) {
         console.error('Error fetching categories:', error);
         return NextResponse.json(
-            { success: false, error: 'Failed to fetch categories', message: error instanceof Error ? error.message : 'Unknown error' },
+            { success: false, error: 'Failed to fetch categories' },
             { status: 500 }
         );
     }

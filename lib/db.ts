@@ -1,3 +1,5 @@
+import "server-only";
+
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const D1_DATABASE_ID = process.env.D1_DATABASE_ID;
@@ -44,13 +46,15 @@ export async function queryD1<T = any>(sql: string, params: any[] = []): Promise
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`D1 API Error: ${response.status} - ${errorText}`);
+            console.error(`D1 API Error: ${response.status} - ${errorText}`);
+            throw new Error('Database query failed');
         }
 
         const data: D1Response<T> = await response.json();
 
         if (!data.success || data.errors.length > 0) {
-            throw new Error(`D1 Query Error: ${JSON.stringify(data.errors)}`);
+            console.error(`D1 Query Error: ${JSON.stringify(data.errors)}`);
+            throw new Error('Database query failed');
         }
 
         return data.result[0]?.results || [];
@@ -152,3 +156,20 @@ export async function getAdminCount(): Promise<number> {
     );
     return results[0]?.count || 0;
 }
+
+/**
+ * Get all admin users (without password hashes)
+ */
+export async function getAllAdmins(): Promise<Array<{ id: number; name: string; email: string; created_at: string }>> {
+    return queryD1<{ id: number; name: string; email: string; created_at: string }>(
+        'SELECT id, name, email, created_at FROM admin_users ORDER BY created_at ASC'
+    );
+}
+
+/**
+ * Delete an admin user by email
+ */
+export async function deleteAdminByEmail(email: string): Promise<void> {
+    await queryD1('DELETE FROM admin_users WHERE email = ?', [email]);
+}
+

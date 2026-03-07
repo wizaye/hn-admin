@@ -3,9 +3,9 @@ import type { NextRequest } from 'next/server';
 import { decrypt } from './lib/auth';
 
 // Routes that don't require authentication
-const publicRoutes = ['/login', '/signup', '/api/auth/login', '/api/auth/signup', '/api/auth/setup', '/api/auth/session'];
+const publicRoutes = ['/login', '/api/auth/login', '/api/auth/setup', '/api/auth/session'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Allow public routes through

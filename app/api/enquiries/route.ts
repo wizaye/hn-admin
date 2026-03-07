@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     } catch (error) {
         console.error('Error fetching enquiries:', error);
         return NextResponse.json(
-            { success: false, error: 'Failed to fetch enquiries', message: error instanceof Error ? error.message : 'Unknown error' },
+            { success: false, error: 'Failed to fetch enquiries' },
             { status: 500 }
         );
     }

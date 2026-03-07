@@ -24,6 +24,7 @@ const pageTitles: Record<string, string> = {
     "/enquiries": "Enquiries",
     "/products": "Products",
     "/banners": "Sale Banners",
+    "/admin-users": "Admin Users",
 }
 
 export default function AdminSidebarLayout({

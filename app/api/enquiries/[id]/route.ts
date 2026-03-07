@@ -29,7 +29,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     } catch (error) {
         console.error('Error fetching enquiry:', error);
         return NextResponse.json(
-            { success: false, error: 'Failed to fetch enquiry', message: error instanceof Error ? error.message : 'Unknown error' },
+            { success: false, error: 'Failed to fetch enquiry' },
             { status: 500 }
         );
     }
@@ -78,7 +78,32 @@ export async function PUT(request: Request, { params }: RouteParams) {
     } catch (error) {
         console.error('Error updating enquiry:', error);
         return NextResponse.json(
-            { success: false, error: 'Failed to update enquiry', message: error instanceof Error ? error.message : 'Unknown error' },
+            { success: false, error: 'Failed to update enquiry' },
+            { status: 500 }
+        );
+    }
+}
+
+/**
+ * DELETE /api/enquiries/[id]
+ * Delete an enquiry
+ */
+export async function DELETE(request: Request, { params }: RouteParams) {
+    try {
+        const { id } = await params;
+
+        // Check if enquiry exists
+        const existing = await queryD1('SELECT id FROM enquiries WHERE id = ? LIMIT 1', [id]);
+        if (existing.length === 0) {
+            return NextResponse.json({ success: false, error: 'Enquiry not found' }, { status: 404 });
+        }
+
+        await queryD1('DELETE FROM enquiries WHERE id = ?', [id]);
+        return NextResponse.json({ success: true, message: 'Enquiry deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting enquiry:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to delete enquiry' },
             { status: 500 }
         );
     }
