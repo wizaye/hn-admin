@@ -77,6 +77,7 @@ export default function EnquiriesPage() {
     const [detailOpen, setDetailOpen] = useState(false);
     const [adminNotes, setAdminNotes] = useState("");
     const [quotedAmount, setQuotedAmount] = useState("");
+    const [status, setStatus] = useState("");
     const [saving, setSaving] = useState(false);
 
     // Delete state
@@ -115,29 +116,11 @@ export default function EnquiriesPage() {
         setSelectedEnquiry(enquiry);
         setAdminNotes(enquiry.admin_notes || "");
         setQuotedAmount(enquiry.quoted_amount?.toString() || "");
+        setStatus(enquiry.status);
         setDetailOpen(true);
     };
 
-    const updateStatus = async (id: number, newStatus: string) => {
-        const toastId = toast.loading(`Updating status to "${newStatus}"...`);
-        try {
-            const res = await fetch(`/api/enquiries/${id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: newStatus }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                toast.success(`Status updated to "${newStatus}"`, { id: toastId });
-                fetchEnquiries();
-                if (selectedEnquiry?.id === id) setSelectedEnquiry({ ...selectedEnquiry, status: newStatus });
-            } else {
-                toast.error("Failed to update status", { id: toastId });
-            }
-        } catch {
-            toast.error("Failed to update status", { id: toastId });
-        }
-    };
+
 
     const saveDetails = async () => {
         if (!selectedEnquiry) return;
@@ -147,7 +130,7 @@ export default function EnquiriesPage() {
             const res = await fetch(`/api/enquiries/${selectedEnquiry.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ admin_notes: adminNotes, quoted_amount: quotedAmount ? parseFloat(quotedAmount) : null }),
+                body: JSON.stringify({ admin_notes: adminNotes, quoted_amount: quotedAmount ? parseFloat(quotedAmount) : null, status: status }),
             });
             const data = await res.json();
             if (data.success) {
@@ -363,7 +346,7 @@ export default function EnquiriesPage() {
                                     <div className="space-y-4">
                                         <div>
                                             <Label htmlFor="status">Update Status</Label>
-                                            <Select value={selectedEnquiry.status} onValueChange={(value) => updateStatus(selectedEnquiry.id, value)}>
+                                            <Select value={status} onValueChange={(value) => setStatus(value)}>
                                                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                                                 <SelectContent>
                                                     {statusOptions.map((s) => (<SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>))}
