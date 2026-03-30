@@ -74,6 +74,56 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
         await queryD1(sql, updateParams);
 
+        if (body.status === 'quoted') {
+            const enquiries = await queryD1('SELECT * FROM enquiries WHERE id = ? LIMIT 1', [id]);
+            if (enquiries.length > 0) {
+                const eq = enquiries[0];
+                const items = eq.items ? JSON.parse(eq.items) : [];
+                const finalQuotedAmount = body.quoted_amount !== undefined ? body.quoted_amount : eq.quoted_amount;
+                
+                if (finalQuotedAmount != null) {
+                    try {
+                        const { getQuotationEmail } = await import('@/lib/email-templates');
+                        const emailData = {
+                            name: eq.customer_name,
+                            companyName: eq.company_name,
+                            quotedAmount: finalQuotedAmount,
+                            adminNotes: body.admin_notes !== undefined ? body.admin_notes : eq.admin_notes,
+                            items: items,
+                        };
+                        const emailContent = getQuotationEmail(emailData, parseInt(id, 10));
+
+                        const RESEND_API_KEY = process.env.RESEND_API_KEY;
+                        const FROM_EMAIL = process.env.FROM_EMAIL || 'info@hyderabadnetwork.com';
+
+                        if (RESEND_API_KEY) {
+                            const resendRes = await fetch('https://api.resend.com/emails', {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${RESEND_API_KEY}`,
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    from: FROM_EMAIL,
+                                    to: eq.email,
+                                    subject: emailContent.subject,
+                                    html: emailContent.html,
+                                    text: emailContent.text,
+                                }),
+                            });
+                            if (resendRes.ok) {
+                                console.log(`Sent quotation email to ${eq.email}`);
+                            } else {
+                                console.error('Failed to send quotation email:', await resendRes.text());
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error constructing or sending quotation email:', e);
+                    }
+                }
+            }
+        }
+
         return NextResponse.json({ success: true, message: 'Enquiry updated successfully' });
     } catch (error) {
         console.error('Error updating enquiry:', error);
