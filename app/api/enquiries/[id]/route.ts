@@ -59,6 +59,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
             updates.push('quoted_amount = ?');
             updateParams.push(body.quoted_amount);
         }
+        if (body.items !== undefined) {
+            updates.push('items = ?');
+            updateParams.push(JSON.stringify(body.items));
+        }
+
         if (body.status === 'converted') {
             updates.push('converted_at = CURRENT_TIMESTAMP');
         }
@@ -78,7 +83,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
             const enquiries = await queryD1('SELECT * FROM enquiries WHERE id = ? LIMIT 1', [id]);
             if (enquiries.length > 0) {
                 const eq = enquiries[0];
-                const items = eq.items ? JSON.parse(eq.items) : [];
+                const items = body.items !== undefined ? body.items : (eq.items ? JSON.parse(eq.items) : []);
                 const finalQuotedAmount = body.quoted_amount !== undefined ? body.quoted_amount : eq.quoted_amount;
                 
                 if (finalQuotedAmount != null) {
@@ -96,6 +101,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
                         const RESEND_API_KEY = process.env.RESEND_API_KEY;
                         const FROM_EMAIL = process.env.FROM_EMAIL || 'info@hyderabadnetwork.com';
 
+                        // Generate PDF Using shared library
+                        const { generateQuotationPDF } = await import('@/lib/pdf-generator');
+                        
+                        const pdfBuffer = await generateQuotationPDF(id, eq, items, finalQuotedAmount);
+                        const base64Pdf = pdfBuffer.toString('base64');
+
                         if (RESEND_API_KEY) {
                             const resendRes = await fetch('https://api.resend.com/emails', {
                                 method: 'POST',
@@ -109,6 +120,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
                                     subject: emailContent.subject,
                                     html: emailContent.html,
                                     text: emailContent.text,
+                                    attachments: [
+                                        {
+                                            filename: `Quotation-${id}.pdf`,
+                                            content: base64Pdf
+                                        }
+                                    ]
                                 }),
                             });
                             if (resendRes.ok) {

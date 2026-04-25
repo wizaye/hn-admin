@@ -79,6 +79,7 @@ export default function EnquiriesPage() {
     const [quotedAmount, setQuotedAmount] = useState("");
     const [status, setStatus] = useState("");
     const [saving, setSaving] = useState(false);
+    const [editedItems, setEditedItems] = useState<EnquiryItem[]>([]);
 
     // Delete state
     const [deleteTarget, setDeleteTarget] = useState<Enquiry | null>(null);
@@ -117,6 +118,7 @@ export default function EnquiriesPage() {
         setAdminNotes(enquiry.admin_notes || "");
         setQuotedAmount(enquiry.quoted_amount?.toString() || "");
         setStatus(enquiry.status);
+        setEditedItems(enquiry.items ? structuredClone(enquiry.items) : []);
         setDetailOpen(true);
     };
 
@@ -130,7 +132,12 @@ export default function EnquiriesPage() {
             const res = await fetch(`/api/enquiries/${selectedEnquiry.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ admin_notes: adminNotes, quoted_amount: quotedAmount ? parseFloat(quotedAmount) : null, status: status }),
+                body: JSON.stringify({ 
+                    admin_notes: adminNotes, 
+                    quoted_amount: quotedAmount ? parseFloat(quotedAmount) : null, 
+                    status: status,
+                    items: editedItems
+                }),
             });
             const data = await res.json();
             if (data.success) {
@@ -292,17 +299,17 @@ export default function EnquiriesPage() {
 
                 {/* Detail Dialog */}
                 <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col gap-0 overflow-hidden">
                         {selectedEnquiry && (
                             <>
-                                <DialogHeader>
+                                <DialogHeader className="p-6 pb-4 border-b shrink-0">
                                     <DialogTitle className="flex items-center gap-3">
                                         Enquiry #{selectedEnquiry.id}
                                         <Badge variant="outline" className={statusColors[selectedEnquiry.status] || ""}>{selectedEnquiry.status}</Badge>
                                     </DialogTitle>
                                     <DialogDescription>{selectedEnquiry.company_name} — {selectedEnquiry.customer_name}</DialogDescription>
                                 </DialogHeader>
-                                <div className="space-y-6">
+                                <div className="p-6 space-y-6 overflow-y-auto flex-1">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="flex items-center gap-2 text-sm"><Building2 className="w-4 h-4 text-muted-foreground" /><span>{selectedEnquiry.company_name}</span></div>
                                         <div className="flex items-center gap-2 text-sm"><Mail className="w-4 h-4 text-muted-foreground" /><a href={`mailto:${selectedEnquiry.email}`} className="underline">{selectedEnquiry.email}</a></div>
@@ -321,13 +328,48 @@ export default function EnquiriesPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {selectedEnquiry.items?.map((item, idx) => (
+                                                {editedItems?.map((item, idx) => (
                                                     <TableRow key={idx}>
                                                         <TableCell className="font-medium">{item.productName}</TableCell>
                                                         <TableCell className="text-muted-foreground">{item.variantName}</TableCell>
-                                                        <TableCell className="text-right">{item.quantity}</TableCell>
-                                                        <TableCell className="text-right">₹{item.price?.toLocaleString("en-IN")}</TableCell>
-                                                        <TableCell className="text-right font-medium">₹{(item.price * item.quantity).toLocaleString("en-IN")}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Input 
+                                                                type="number" 
+                                                                value={item.quantity} 
+                                                                min={1}
+                                                                onChange={(e) => {
+                                                                    const newItems = [...editedItems];
+                                                                    newItems[idx].quantity = parseInt(e.target.value) || 0;
+                                                                    setEditedItems(newItems);
+                                                                    
+                                                                    // Update total quoted amount automatically
+                                                                    const total = newItems.reduce((acc, curr) => acc + ((curr.price || 0) * (curr.quantity || 0)), 0);
+                                                                    setQuotedAmount(total.toString());
+                                                                }}
+                                                                className="w-20 ml-auto h-8 text-right"
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="text-right flex justify-end">
+                                                            <div className="relative w-28">
+                                                                <IndianRupee className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                                                                <Input 
+                                                                    type="number" 
+                                                                    value={item.price} 
+                                                                    min={0}
+                                                                    onChange={(e) => {
+                                                                        const newItems = [...editedItems];
+                                                                        newItems[idx].price = parseFloat(e.target.value) || 0;
+                                                                        setEditedItems(newItems);
+                                                                        
+                                                                        // Update total quoted amount automatically
+                                                                        const total = newItems.reduce((acc, curr) => acc + ((curr.price || 0) * (curr.quantity || 0)), 0);
+                                                                        setQuotedAmount(total.toString());
+                                                                    }}
+                                                                    className="w-full pl-6 h-8 text-right"
+                                                                />
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-right font-medium">₹{((item.price || 0) * (item.quantity || 0)).toLocaleString("en-IN")}</TableCell>
                                                     </TableRow>
                                                 ))}
                                             </TableBody>
@@ -366,11 +408,27 @@ export default function EnquiriesPage() {
                                         </div>
                                     </div>
                                 </div>
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={() => setDetailOpen(false)}>Cancel</Button>
-                                    <Button onClick={saveDetails} disabled={saving}>
-                                        {saving ? <><Spinner className="size-4 mr-2" />Saving...</> : "Save Changes"}
+                                <DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row sm:justify-between items-center w-full">
+                                    <Button 
+                                        type="button" 
+                                        variant="secondary" 
+                                        onClick={() => {
+                                            const params = new URLSearchParams({
+                                                quotedAmount: quotedAmount,
+                                                items: JSON.stringify(editedItems)
+                                            });
+                                            window.open(`/api/enquiries/${selectedEnquiry.id}/pdf?${params.toString()}`, '_blank');
+                                        }}
+                                    >
+                                        <Eye className="w-4 h-4 mr-2" />
+                                        Preview PDF
                                     </Button>
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" onClick={() => setDetailOpen(false)}>Cancel</Button>
+                                        <Button onClick={saveDetails} disabled={saving}>
+                                            {saving ? <><Spinner className="size-4 mr-2" />Saving...</> : "Save Changes"}
+                                        </Button>
+                                    </div>
                                 </DialogFooter>
                             </>
                         )}
