@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { applyPlugin } from 'jspdf-autotable';
-import { LOGO_BASE64 } from '@/lib/logo';
+import { LOGO_BASE64, TEXT_BASE64 } from '@/lib/logo';
 
 export async function generateQuotationPDF(id: string, eq: any, items: any[], finalQuotedAmount: number) {
     const autoTableModule = await import('jspdf-autotable');
@@ -19,26 +19,25 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
     let startY = 30;
     try {
         if (LOGO_BASE64) {
-            doc.addImage(LOGO_BASE64, 'PNG', 95, 20, 20, 20);
+            doc.addImage(LOGO_BASE64, 'JPEG', 95, 20, 20, 20);
             startY = 46;
         }
     } catch (e) {
         console.error('Failed to load logo', e);
     }
 
-    // Company Info
-    doc.setTextColor(0, 0, 128); // Blue text for HYDERABAD
-    doc.setFontSize(18);
-    doc.text("HYDERABAD ", 105, startY, { align: "right" });
-    doc.setTextColor(255, 0, 0); // Red text for NETWORK
-    doc.text("NETWORK", 105, startY, { align: "left" });
-
-    startY += 6;
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(11);
-    doc.text("DISTRIBUTOR FOR AJANTA ORPAT GROUP", 105, startY, { align: "center" });
+    try {
+        if (TEXT_BASE64) {
+            doc.addImage(TEXT_BASE64, 'JPEG', 65, startY, 80, 9);
+        }
+    } catch (e) {
+        console.error('Failed to load text image', e);
+    }
+    
+    startY += 15;
 
     startY += 5;
+    doc.setTextColor(0, 0, 0);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.text("#4-1-834/A, Backside Old BigBazar, Car Parking Lane, Abids, Hyderabad-500001", 105, startY, { align: "center" });
@@ -80,7 +79,7 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
         const itemData = [
             item.productName || "Unknown",
             item.variantName || "-",
-            `Rs. ${(item.price || 0).toLocaleString("en-IN")}`,
+            `Rs. ${(item.mrp !== undefined ? item.mrp : item.price || 0).toLocaleString("en-IN")}`,
             `Rs. ${(item.price || 0).toLocaleString("en-IN")}`,
             item.quantity || 0,
             `Rs. ${((item.price || 0) * (item.quantity || 0)).toLocaleString("en-IN")}`
@@ -135,21 +134,21 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
     finalY += 8;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text("* HSN CODE for Product 91052100.", 14, finalY);
+    doc.text(" * HSN CODE for Product 91052100.", 14, finalY);
     finalY += 6;
-    doc.text("* Includes battery.", 14, finalY);
+    doc.text(" * Includes battery.", 14, finalY);
     finalY += 6;
-    doc.text("* Including GST @18%.", 14, finalY);
+    doc.text(" * Including GST @18%.", 14, finalY);
     finalY += 6;
-    doc.text("* One year warranty from the date of purchase.", 14, finalY);
+    doc.text(" * One year warranty from the date of purchase.", 14, finalY);
     finalY += 6;
-    doc.text("* Company service center available all over India.", 14, finalY);
+    doc.text(" * Company service center available all over India.", 14, finalY);
     finalY += 6;
-    doc.text("  ( please refer company warranty card )", 14, finalY);
+    doc.text("( please refer company warranty card )", 14, finalY);
     finalY += 6;
-    doc.text("* Payment 50% Advance on Order Confirmation", 14, finalY);
+    doc.text(" * Payment 50% Advance on Order Confirmation", 14, finalY);
     finalY += 6;
-    doc.text("* Balance On or before Delivery of Goods.", 14, finalY);
+    doc.text(" * Balance On or before Delivery of Goods.", 14, finalY);
 
     const pdfArrayBuffer = doc.output('arraybuffer');
     return Buffer.from(pdfArrayBuffer);

@@ -36,6 +36,7 @@ interface EnquiryItem {
     variantName: string;
     quantity: number;
     price: number;
+    mrp?: number;
 }
 
 interface Enquiry {
@@ -118,7 +119,14 @@ export default function EnquiriesPage() {
         setAdminNotes(enquiry.admin_notes || "");
         setQuotedAmount(enquiry.quoted_amount?.toString() || "");
         setStatus(enquiry.status);
-        setEditedItems(enquiry.items ? structuredClone(enquiry.items) : []);
+        
+        const itemsToEdit = enquiry.items ? structuredClone(enquiry.items) : [];
+        itemsToEdit.forEach((item: EnquiryItem) => {
+            if (item.mrp === undefined) {
+                item.mrp = item.price;
+            }
+        });
+        setEditedItems(itemsToEdit);
         setDetailOpen(true);
     };
 
@@ -299,7 +307,7 @@ export default function EnquiriesPage() {
 
                 {/* Detail Dialog */}
                 <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col gap-0 overflow-hidden">
+                    <DialogContent className="max-w-4xl lg:max-w-5xl max-h-[90vh] p-0 flex flex-col gap-0 overflow-hidden">
                         {selectedEnquiry && (
                             <>
                                 <DialogHeader className="p-6 pb-4 border-b shrink-0">
@@ -323,7 +331,9 @@ export default function EnquiriesPage() {
                                             <TableHeader>
                                                 <TableRow>
                                                     <TableHead>Product</TableHead><TableHead>Variant</TableHead>
-                                                    <TableHead className="text-right">Qty</TableHead><TableHead className="text-right">Price</TableHead>
+                                                    <TableHead className="text-right">Qty</TableHead>
+                                                    <TableHead className="text-right">MRP</TableHead>
+                                                    <TableHead className="text-right">Gross Price</TableHead>
                                                     <TableHead className="text-right">Total</TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -349,8 +359,24 @@ export default function EnquiriesPage() {
                                                                 className="w-20 ml-auto h-8 text-right"
                                                             />
                                                         </TableCell>
-                                                        <TableCell className="text-right flex justify-end">
-                                                            <div className="relative w-28">
+                                                        <TableCell className="text-right">
+                                                            <div className="relative w-28 ml-auto">
+                                                                <IndianRupee className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                                                                <Input 
+                                                                    type="number" 
+                                                                    value={item.mrp !== undefined ? item.mrp : item.price} 
+                                                                    min={0}
+                                                                    onChange={(e) => {
+                                                                        const newItems = [...editedItems];
+                                                                        newItems[idx].mrp = parseFloat(e.target.value) || 0;
+                                                                        setEditedItems(newItems);
+                                                                    }}
+                                                                    className="w-full pl-6 h-8 text-right"
+                                                                />
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="relative w-28 ml-auto">
                                                                 <IndianRupee className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                                                                 <Input 
                                                                     type="number" 
