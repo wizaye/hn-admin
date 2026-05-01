@@ -79,35 +79,59 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
         await queryD1(sql, updateParams);
 
-        if (body.status === 'quoted') {
+        if (body.status) {
             const enquiries = await queryD1('SELECT * FROM enquiries WHERE id = ? LIMIT 1', [id]);
             if (enquiries.length > 0) {
                 const eq = enquiries[0];
                 const items = body.items !== undefined ? body.items : (eq.items ? JSON.parse(eq.items) : []);
                 const finalQuotedAmount = body.quoted_amount !== undefined ? body.quoted_amount : eq.quoted_amount;
+                const finalAdminNotes = body.admin_notes !== undefined ? body.admin_notes : eq.admin_notes;
                 
-                if (finalQuotedAmount != null) {
+                const RESEND_API_KEY = process.env.RESEND_API_KEY;
+                const FROM_EMAIL = process.env.FROM_EMAIL || 'info@hyderabadnetwork.com';
+
+                if (RESEND_API_KEY && eq.email) {
+                    let emailSubject = '';
+                    let emailHtml = '';
+                    let emailText = '';
+                    let attachments: any[] = [];
+
                     try {
-                        const { getQuotationEmail } = await import('@/lib/email-templates');
-                        const emailData = {
-                            name: eq.customer_name,
-                            companyName: eq.company_name,
-                            quotedAmount: finalQuotedAmount,
-                            adminNotes: body.admin_notes !== undefined ? body.admin_notes : eq.admin_notes,
-                            items: items,
-                        };
-                        const emailContent = getQuotationEmail(emailData, parseInt(id, 10));
+                        if (body.status === 'quoted' && finalQuotedAmount != null) {
+                            const { getQuotationEmail } = await import('@/lib/email-templates');
+                            const emailData = {
+                                name: eq.customer_name,
+                                companyName: eq.company_name,
+                                quotedAmount: finalQuotedAmount,
+                                adminNotes: finalAdminNotes,
+                                items: items,
+                            };
+                            const emailContent = getQuotationEmail(emailData, parseInt(id, 10));
+                            emailSubject = emailContent.subject;
+                            emailHtml = emailContent.html;
+                            emailText = emailContent.text;
 
-                        const RESEND_API_KEY = process.env.RESEND_API_KEY;
-                        const FROM_EMAIL = process.env.FROM_EMAIL || 'info@hyderabadnetwork.com';
-
-                        // Generate PDF Using shared library
-                        const { generateQuotationPDF } = await import('@/lib/pdf-generator');
+                            const { generateQuotationPDF } = await import('@/lib/pdf-generator');
+                            const pdfBuffer = await generateQuotationPDF(id, eq, items, finalQuotedAmount);
+                            attachments = [{
+                                filename: `Quotation-${id}.pdf`,
+                                content: pdfBuffer.toString('base64')
+                            }];
+                        } else {
+                            const { getStatusUpdateEmail } = await import('@/lib/email-templates');
+                            const emailData = {
+                                name: eq.customer_name,
+                                companyName: eq.company_name,
+                                status: body.status,
+                                adminNotes: finalAdminNotes,
+                            };
+                            const emailContent = getStatusUpdateEmail(emailData, parseInt(id, 10));
+                            emailSubject = emailContent.subject;
+                            emailHtml = emailContent.html;
+                            emailText = emailContent.text;
+                        }
                         
-                        const pdfBuffer = await generateQuotationPDF(id, eq, items, finalQuotedAmount);
-                        const base64Pdf = pdfBuffer.toString('base64');
-
-                        if (RESEND_API_KEY) {
+                        if (emailSubject) {
                             const resendRes = await fetch('https://api.resend.com/emails', {
                                 method: 'POST',
                                 headers: {
@@ -117,25 +141,20 @@ export async function PUT(request: Request, { params }: RouteParams) {
                                 body: JSON.stringify({
                                     from: FROM_EMAIL,
                                     to: eq.email,
-                                    subject: emailContent.subject,
-                                    html: emailContent.html,
-                                    text: emailContent.text,
-                                    attachments: [
-                                        {
-                                            filename: `Quotation-${id}.pdf`,
-                                            content: base64Pdf
-                                        }
-                                    ]
+                                    subject: emailSubject,
+                                    html: emailHtml,
+                                    text: emailText,
+                                    attachments: attachments.length > 0 ? attachments : undefined
                                 }),
                             });
                             if (resendRes.ok) {
-                                console.log(`Sent quotation email to ${eq.email}`);
+                                console.log(`Sent email to ${eq.email} for status ${body.status}`);
                             } else {
-                                console.error('Failed to send quotation email:', await resendRes.text());
+                                console.error('Failed to send email:', await resendRes.text());
                             }
                         }
                     } catch (e) {
-                        console.error('Error constructing or sending quotation email:', e);
+                        console.error('Error constructing or sending email:', e);
                     }
                 }
             }

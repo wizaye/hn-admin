@@ -59,13 +59,12 @@ interface Enquiry {
 
 const statusColors: Record<string, string> = {
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    contacted: "bg-blue-100 text-blue-800 border-blue-200",
     quoted: "bg-purple-100 text-purple-800 border-purple-200",
     converted: "bg-green-100 text-green-800 border-green-200",
     closed: "bg-gray-100 text-gray-800 border-gray-200",
 };
 
-const statusOptions = ["pending", "contacted", "quoted", "converted", "closed"];
+const statusOptions = ["pending", "quoted", "converted", "closed"];
 
 export default function EnquiriesPage() {
     const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
@@ -86,6 +85,54 @@ export default function EnquiriesPage() {
     const [deleteTarget, setDeleteTarget] = useState<Enquiry | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    // Local Bill state
+    const [localBillOpen, setLocalBillOpen] = useState(false);
+    const [localBillForm, setLocalBillForm] = useState({ company_name: '', customer_name: '', email: '', phone: '' });
+    const [localBillItems, setLocalBillItems] = useState([{ productName: '', quantity: 1, price: 0 }]);
+    const [creatingBill, setCreatingBill] = useState(false);
+
+    const createLocalBill = async () => {
+        if (!localBillForm.company_name || !localBillForm.customer_name) {
+            toast.error("Company name and contact name are required");
+            return;
+        }
+        if (localBillItems.length === 0 || !localBillItems[0].productName) {
+            toast.error("At least one item is required");
+            return;
+        }
+        setCreatingBill(true);
+        const toastId = toast.loading("Creating local bill...");
+        
+        const totalAmount = localBillItems.reduce((acc, curr) => acc + (curr.quantity * curr.price), 0);
+        
+        try {
+            const res = await fetch("/api/enquiries", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ...localBillForm,
+                    status: "converted",
+                    items: localBillItems,
+                    total_amount: totalAmount
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("Local bill created", { id: toastId });
+                setLocalBillOpen(false);
+                setLocalBillForm({ company_name: '', customer_name: '', email: '', phone: '' });
+                setLocalBillItems([{ productName: '', quantity: 1, price: 0 }]);
+                fetchEnquiries();
+            } else {
+                toast.error(data.error || "Failed to create bill", { id: toastId });
+            }
+        } catch {
+            toast.error("Failed to create bill", { id: toastId });
+        } finally {
+            setCreatingBill(false);
+        }
+    };
 
     const fetchEnquiries = useCallback(async () => {
         setLoading(true);
@@ -269,16 +316,20 @@ export default function EnquiriesPage() {
                         <h1 className="text-2xl font-bold tracking-tight">Enquiries</h1>
                         <p className="text-muted-foreground">Manage customer enquiries and track status</p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={fetchEnquiries} className="gap-2">
-                        <RefreshCcw className="w-4 h-4" /> Refresh
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="default" size="sm" onClick={() => setLocalBillOpen(true)} className="gap-2">
+                            <StickyNote className="w-4 h-4" /> Create Local Bill
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={fetchEnquiries} className="gap-2">
+                            <RefreshCcw className="w-4 h-4" /> Refresh
+                        </Button>
+                    </div>
                 </div>
 
                 <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-                    <TabsList>
+                    <TabsList className="overflow-x-auto max-w-full justify-start sm:justify-center h-auto py-1">
                         <TabsTrigger value="all">All</TabsTrigger>
                         <TabsTrigger value="pending">Pending</TabsTrigger>
-                        <TabsTrigger value="contacted">Contacted</TabsTrigger>
                         <TabsTrigger value="quoted">Quoted</TabsTrigger>
                         <TabsTrigger value="converted">Converted</TabsTrigger>
                         <TabsTrigger value="closed">Closed</TabsTrigger>
@@ -498,6 +549,91 @@ export default function EnquiriesPage() {
                                 }}
                             >
                                 {deleting ? "Deleting..." : "Delete"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Create Local Bill Dialog */}
+                <Dialog open={localBillOpen} onOpenChange={setLocalBillOpen}>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Create Local Shop Bill</DialogTitle>
+                            <DialogDescription>
+                                Manually add a customer bill from a local shop transaction.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="lb_company">Company Name</Label>
+                                    <Input id="lb_company" value={localBillForm.company_name} onChange={(e) => setLocalBillForm({...localBillForm, company_name: e.target.value})} placeholder="E.g. Sharma Traders" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="lb_contact">Contact Name</Label>
+                                    <Input id="lb_contact" value={localBillForm.customer_name} onChange={(e) => setLocalBillForm({...localBillForm, customer_name: e.target.value})} placeholder="E.g. Rahul Sharma" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="lb_email">Email (Optional)</Label>
+                                    <Input id="lb_email" type="email" value={localBillForm.email} onChange={(e) => setLocalBillForm({...localBillForm, email: e.target.value})} placeholder="Email address" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="lb_phone">Phone (Optional)</Label>
+                                    <Input id="lb_phone" value={localBillForm.phone} onChange={(e) => setLocalBillForm({...localBillForm, phone: e.target.value})} placeholder="Phone number" />
+                                </div>
+                            </div>
+                            
+                            <div className="pt-4 border-t">
+                                <div className="flex justify-between items-center mb-2">
+                                    <Label className="text-base font-semibold">Items</Label>
+                                    <Button variant="outline" size="sm" onClick={() => setLocalBillItems([...localBillItems, { productName: '', quantity: 1, price: 0 }])}>+ Add Item</Button>
+                                </div>
+                                <div className="space-y-3">
+                                    {localBillItems.map((item, index) => (
+                                        <div key={index} className="flex gap-2 items-start">
+                                            <div className="flex-1 space-y-1">
+                                                <Input placeholder="Product Name" value={item.productName} onChange={(e) => {
+                                                    const newItems = [...localBillItems];
+                                                    newItems[index].productName = e.target.value;
+                                                    setLocalBillItems(newItems);
+                                                }} />
+                                            </div>
+                                            <div className="w-24 space-y-1">
+                                                <Input type="number" min="1" placeholder="Qty" value={item.quantity} onChange={(e) => {
+                                                    const newItems = [...localBillItems];
+                                                    newItems[index].quantity = parseInt(e.target.value) || 0;
+                                                    setLocalBillItems(newItems);
+                                                }} />
+                                            </div>
+                                            <div className="w-32 space-y-1 relative">
+                                                <IndianRupee className="absolute left-2 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
+                                                <Input type="number" min="0" className="pl-7" placeholder="Price" value={item.price} onChange={(e) => {
+                                                    const newItems = [...localBillItems];
+                                                    newItems[index].price = parseFloat(e.target.value) || 0;
+                                                    setLocalBillItems(newItems);
+                                                }} />
+                                            </div>
+                                            {localBillItems.length > 1 && (
+                                                <Button variant="ghost" size="icon" className="shrink-0 text-destructive" onClick={() => {
+                                                    const newItems = [...localBillItems];
+                                                    newItems.splice(index, 1);
+                                                    setLocalBillItems(newItems);
+                                                }}><Trash2 className="w-4 h-4" /></Button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-4 text-right font-medium">
+                                    Total: ₹{localBillItems.reduce((acc, curr) => acc + (curr.quantity * curr.price), 0).toLocaleString("en-IN")}
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setLocalBillOpen(false)}>Cancel</Button>
+                            <Button onClick={createLocalBill} disabled={creatingBill}>
+                                {creatingBill ? "Creating..." : "Create Bill"}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
