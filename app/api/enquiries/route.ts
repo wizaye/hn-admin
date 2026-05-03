@@ -87,6 +87,93 @@ export async function POST(request: Request) {
         ];
         
         const result = await queryD1(sql, params);
+        const newId = result[0]?.id;
+        
+        if (newId && email && status) {
+            try {
+                const RESEND_API_KEY = process.env.RESEND_API_KEY;
+                const FROM_EMAIL = process.env.FROM_EMAIL || 'info@hyderabadnetwork.com';
+                
+                if (RESEND_API_KEY) {
+                    const eq = {
+                        id: newId,
+                        customer_name: customerName,
+                        company_name: companyName,
+                        email: email,
+                        phone: phone,
+                        status: status,
+                        quoted_amount: quotedAmount,
+                        delivery_timeline: 'Immediate',
+                        customization_notes: ''
+                    };
+                    const items = body.items || [];
+                    
+                    let emailSubject = '';
+                    let emailHtml = '';
+                    let emailText = '';
+                    let attachments: any[] = [];
+                    
+                    if (status === 'quoted' && quotedAmount != null) {
+                        const { getQuotationEmail } = await import('@/lib/email-templates');
+                        const emailData = {
+                            name: customerName,
+                            companyName: companyName,
+                            quotedAmount: quotedAmount,
+                            adminNotes: '',
+                            items: items,
+                        };
+                        const emailContent = getQuotationEmail(emailData, parseInt(newId, 10));
+                        emailSubject = emailContent.subject;
+                        emailHtml = emailContent.html;
+                        emailText = emailContent.text;
+                        
+                        const { generateQuotationPDF } = await import('@/lib/pdf-generator');
+                        const pdfBuffer = await generateQuotationPDF(newId, eq, items, quotedAmount);
+                        attachments = [{
+                            filename: `Quotation-${newId}.pdf`,
+                            content: pdfBuffer.toString('base64')
+                        }];
+                    } else {
+                        const { getStatusUpdateEmail } = await import('@/lib/email-templates');
+                        const emailData = {
+                            name: customerName,
+                            companyName: companyName,
+                            status: status,
+                            adminNotes: '',
+                        };
+                        const emailContent = getStatusUpdateEmail(emailData, parseInt(newId, 10));
+                        emailSubject = emailContent.subject;
+                        emailHtml = emailContent.html;
+                        emailText = emailContent.text;
+                    }
+                    
+                    if (emailSubject) {
+                        const resendRes = await fetch('https://api.resend.com/emails', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${RESEND_API_KEY}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                from: FROM_EMAIL,
+                                to: email,
+                                subject: emailSubject,
+                                html: emailHtml,
+                                text: emailText,
+                                attachments: attachments.length > 0 ? attachments : undefined
+                            }),
+                        });
+                        if (resendRes.ok) {
+                            console.log(`Sent email to ${email} for status ${status}`);
+                        } else {
+                            console.error('Failed to send email:', await resendRes.text());
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error sending email on creation:', e);
+            }
+        }
         
         return NextResponse.json({ success: true, data: result });
     } catch (error) {

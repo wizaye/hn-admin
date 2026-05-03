@@ -7,7 +7,7 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
     const autoTable = autoTableModule.default || autoTableModule.applyPlugin || applyPlugin;
 
     const doc = new jsPDF();
-    
+
     // Header Box "QUOTATION"
     doc.setFillColor(0, 0, 0);
     doc.rect(80, 10, 50, 8, 'F');
@@ -33,10 +33,8 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
     } catch (e) {
         console.error('Failed to load text image', e);
     }
-    
-    startY += 15;
 
-    startY += 5;
+    startY += 15;
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
@@ -122,7 +120,7 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
         // @ts-ignore
         doc.autoTable(tableConfig);
     }
-    
+
     // @ts-ignore
     let finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : startY + 20;
 
