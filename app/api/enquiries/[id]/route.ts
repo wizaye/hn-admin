@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { queryD1 } from '@/lib/db';
+import { getQuotationEmail, getStatusUpdateEmail } from '@/lib/email-templates';
+import { generateQuotationPDF } from '@/lib/pdf-generator';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -98,7 +100,6 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
                     try {
                         if (body.status === 'quoted' && finalQuotedAmount != null) {
-                            const { getQuotationEmail } = await import('@/lib/email-templates');
                             const emailData = {
                                 name: eq.customer_name,
                                 companyName: eq.company_name,
@@ -111,14 +112,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
                             emailHtml = emailContent.html;
                             emailText = emailContent.text;
 
-                            const { generateQuotationPDF } = await import('@/lib/pdf-generator');
                             const pdfBuffer = await generateQuotationPDF(id, eq, items, finalQuotedAmount);
                             attachments = [{
                                 filename: `Quotation-${id}.pdf`,
                                 content: pdfBuffer.toString('base64')
                             }];
                         } else {
-                            const { getStatusUpdateEmail } = await import('@/lib/email-templates');
                             const emailData = {
                                 name: eq.customer_name,
                                 companyName: eq.company_name,
