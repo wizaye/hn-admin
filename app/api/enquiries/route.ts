@@ -93,10 +93,10 @@ export async function POST(request: Request) {
         
         if (newId && email && status) {
             try {
-                const RESEND_API_KEY = process.env.RESEND_API_KEY;
+                const RESEND_TOKEN = process.env.RESEND_TOKEN;
                 const FROM_EMAIL = process.env.FROM_EMAIL || 'info@hyderabadnetwork.com';
                 
-                if (RESEND_API_KEY) {
+                if (RESEND_TOKEN) {
                     const eq = {
                         id: newId,
                         customer_name: customerName,
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
                         const resendRes = await fetch('https://api.resend.com/emails', {
                             method: 'POST',
                             headers: {
-                                'Authorization': `Bearer ${RESEND_API_KEY}`,
+                                'Authorization': `Bearer ${RESEND_TOKEN}`,
                                 'Content-Type': 'application/json',
                             },
                             body: JSON.stringify({

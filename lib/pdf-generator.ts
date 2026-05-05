@@ -1,11 +1,8 @@
 import { jsPDF } from 'jspdf';
-import { applyPlugin } from 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { LOGO_BASE64, TEXT_BASE64 } from '@/lib/logo';
 
 export async function generateQuotationPDF(id: string, eq: any, items: any[], finalQuotedAmount: number) {
-    const autoTableModule = await import('jspdf-autotable');
-    const autoTable = autoTableModule.default || autoTableModule.applyPlugin || applyPlugin;
-
     const doc = new jsPDF();
 
     // Header Box "QUOTATION"
@@ -113,16 +110,10 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
         }
     };
 
-    // @ts-ignore
-    if (typeof autoTable === 'function') {
-        autoTable(doc, tableConfig);
-    } else {
-        // @ts-ignore
-        doc.autoTable(tableConfig);
-    }
+    autoTable(doc, tableConfig);
 
     // @ts-ignore
-    let finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : startY + 20;
+    let finalY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY : startY + 20;
 
     finalY += 15;
     doc.setFontSize(11);

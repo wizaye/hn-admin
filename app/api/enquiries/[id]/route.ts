@@ -89,10 +89,10 @@ export async function PUT(request: Request, { params }: RouteParams) {
                 const finalQuotedAmount = body.quoted_amount !== undefined ? body.quoted_amount : eq.quoted_amount;
                 const finalAdminNotes = body.admin_notes !== undefined ? body.admin_notes : eq.admin_notes;
                 
-                const RESEND_API_KEY = process.env.RESEND_API_KEY;
+                const RESEND_TOKEN = process.env.RESEND_TOKEN;
                 const FROM_EMAIL = process.env.FROM_EMAIL || 'info@hyderabadnetwork.com';
 
-                if (RESEND_API_KEY && eq.email) {
+                if (RESEND_TOKEN && eq.email) {
                     let emailSubject = '';
                     let emailHtml = '';
                     let emailText = '';
@@ -134,7 +134,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
                             const resendRes = await fetch('https://api.resend.com/emails', {
                                 method: 'POST',
                                 headers: {
-                                    'Authorization': `Bearer ${RESEND_API_KEY}`,
+                                    'Authorization': `Bearer ${RESEND_TOKEN}`,
                                     'Content-Type': 'application/json',
                                 },
                                 body: JSON.stringify({
