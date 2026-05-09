@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { LOGO_BASE64, TEXT_BASE64 } from '@/lib/logo';
+import { getLogoBuffer, getTextBuffer } from '@/lib/logo';
 
 export async function generateQuotationPDF(id: string, eq: any, items: any[], finalQuotedAmount: number) {
     const doc = new jsPDF();
@@ -15,8 +15,10 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
 
     let startY = 30;
     try {
-        if (LOGO_BASE64) {
-            doc.addImage(LOGO_BASE64, 'JPEG', 95, 20, 20, 20);
+        const logoBuffer = getLogoBuffer();
+        if (logoBuffer) {
+            const logoData = new Uint8Array(logoBuffer);
+            doc.addImage(logoData, 'JPEG', 95, 20, 20, 20);
             startY = 46;
         }
     } catch (e) {
@@ -24,14 +26,16 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
     }
 
     try {
-        if (TEXT_BASE64) {
-            doc.addImage(TEXT_BASE64, 'JPEG', 65, startY, 80, 9);
+        const textBuffer = getTextBuffer();
+        if (textBuffer) {
+            const textData = new Uint8Array(textBuffer);
+            doc.addImage(textData, 'JPEG', 45, startY, 120, 13.5);
         }
     } catch (e) {
         console.error('Failed to load text image', e);
     }
 
-    startY += 15;
+    startY += 18;
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
@@ -50,22 +54,70 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
 
     startY += 10;
     // Customer Box (Left)
+    doc.setFontSize(9);
+    let addressLines: string[] = [];
+    if (eq.address) {
+        addressLines = doc.splitTextToSize(eq.address, 96);
+    }
+
+    const details = [];
+    if (eq.company_name && eq.customer_name) details.push(eq.customer_name);
+    if (eq.phone) details.push(`Ph: ${eq.phone}`);
+    if (eq.email) details.push(`Email: ${eq.email}`);
+    
+    let detailsLines: string[] = [];
+    if (details.length > 0) {
+        detailsLines = doc.splitTextToSize(details.join(" | "), 96);
+    }
+
+    // Calculate dynamic box height based on contents
+    let boxHeight = 22; // Space for "To," and mainName
+    if (addressLines.length > 0) boxHeight += addressLines.length * 4.5;
+    if (detailsLines.length > 0) boxHeight += detailsLines.length * 4.5;
+    if (addressLines.length > 0 && detailsLines.length > 0) boxHeight += 2; // gap between address and details
+
+    boxHeight = Math.max(28, boxHeight); // Ensure minimum height
+
     doc.setLineWidth(0.5);
-    doc.rect(14, startY, 100, 28); // x,y,w,h
-    // Add customer text inside
+    doc.rect(14, startY, 100, boxHeight); // x,y,w,h
+    
+    // Add "To," text inside
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    if (eq.customer_name) doc.text(`Customer: ${eq.customer_name}`, 16, startY + 6);
-    doc.setFont("helvetica", "normal");
-    if (eq.company_name) doc.text(`Company: ${eq.company_name}`, 16, startY + 12);
-    if (eq.email) doc.text(`Email: ${eq.email}`, 16, startY + 18);
-    if (eq.phone) doc.text(`Phone: ${eq.phone}`, 16, startY + 24);
+    doc.text("To,", 16, startY + 5);
+
+    const mainName = eq.company_name || eq.customer_name || "Customer";
+    
+    // 1. Company Name
+    doc.setTextColor(43, 61, 115); // Dark blueish
+    doc.setFontSize(13);
+    doc.text(mainName, 64, startY + 14, { align: "center", maxWidth: 96 });
+
+    let nextY = startY + 21;
+    
+    // 2. Address
+    if (addressLines.length > 0) {
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text(addressLines, 64, nextY, { align: "center" });
+        nextY += addressLines.length * 4.5 + 2; // Move Y down for the next section
+    }
+
+    // 3. Name, Phone, Email
+    if (detailsLines.length > 0) {
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.text(detailsLines, 64, nextY, { align: "center" });
+    }
 
     // Quotation No & Date (Right)
     doc.setFont("helvetica", "bold");
     doc.text(`Quotation No. : ${id}`, 140, startY + 10);
     doc.text(`Date : ${new Date().toLocaleDateString('en-IN')}`, 140, startY + 16);
 
-    startY += 35; // past the box
+    startY += boxHeight + 7; // past the box
 
     const tableColumn = ["Product", "Model No", "MRP", "Gross Price", "Quantity", "Total (Incl. GST)"];
     const tableRows: any[] = [];
@@ -82,31 +134,37 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
         tableRows.push(itemData);
     });
 
+    let headerBottomY = startY;
+
     const tableConfig: any = {
         startY: startY,
         head: [tableColumn],
         body: tableRows,
         foot: [["", "", "", "", "Total Amount", `Rs. ${finalQuotedAmount.toLocaleString("en-IN")}`]],
-        theme: 'grid',
+        theme: 'plain',
         headStyles: {
             fillColor: [180, 198, 231],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
             lineColor: [0, 0, 0],
-            lineWidth: 0.5
+            lineWidth: 0.5,
+            halign: 'center'
         },
         bodyStyles: {
             fillColor: [162, 185, 219],
             textColor: [0, 0, 0],
-            lineColor: [0, 0, 0],
-            lineWidth: 0.5
+            halign: 'center'
         },
         footStyles: {
             fillColor: [162, 185, 219],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
-            lineColor: [0, 0, 0],
-            lineWidth: 0.5
+            halign: 'center'
+        },
+        didDrawCell: function(data: any) {
+            if (data.section === 'head') {
+                headerBottomY = data.cell.y + data.cell.height;
+            }
         }
     };
 
@@ -114,6 +172,16 @@ export async function generateQuotationPDF(id: string, eq: any, items: any[], fi
 
     // @ts-ignore
     let finalY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY : startY + 20;
+
+    // Draw outer border around the entire table
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(0, 0, 0);
+    doc.rect(14, startY, 182, finalY - startY);
+
+    // Draw the bottom border of the heading bar
+    if (headerBottomY > startY) {
+        doc.line(14, headerBottomY, 196, headerBottomY);
+    }
 
     finalY += 15;
     doc.setFontSize(11);

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { queryD1 } from '@/lib/db';
-import { getQuotationEmail, getStatusUpdateEmail } from '@/lib/email-templates';
+import { getQuotationEmail, getStatusUpdateEmail, getInlineImages } from '@/lib/email-templates';
 import { generateQuotationPDF } from '@/lib/pdf-generator';
 
 export const dynamic = 'force-dynamic';
@@ -56,6 +56,10 @@ export async function PUT(request: Request, { params }: RouteParams) {
         if (body.admin_notes !== undefined) {
             updates.push('admin_notes = ?');
             updateParams.push(body.admin_notes);
+        }
+        if (body.address !== undefined) {
+            updates.push('address = ?');
+            updateParams.push(body.address);
         }
         if (body.quoted_amount !== undefined) {
             updates.push('quoted_amount = ?');
@@ -131,6 +135,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
                         }
                         
                         if (emailSubject) {
+                            attachments = [...attachments, ...getInlineImages()];
+                            console.log(`Attempting to send email to ${eq.email} for status ${body.status}`);
+                            
                             const resendRes = await fetch('https://api.resend.com/emails', {
                                 method: 'POST',
                                 headers: {
@@ -155,6 +162,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
                     } catch (e) {
                         console.error('Error constructing or sending email:', e);
                     }
+                } else {
+                    console.log('Skipping email dispatch: missing RESEND_TOKEN or email', { hasToken: !!RESEND_TOKEN, email: eq.email });
                 }
             }
         }

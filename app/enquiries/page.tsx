@@ -45,6 +45,7 @@ interface Enquiry {
     company_name: string;
     email: string;
     phone: string;
+    address?: string;
     customization_notes: string;
     expected_quantity: number;
     delivery_timeline: string;
@@ -77,6 +78,7 @@ export default function EnquiriesPage() {
     const [detailOpen, setDetailOpen] = useState(false);
     const [adminNotes, setAdminNotes] = useState("");
     const [quotedAmount, setQuotedAmount] = useState("");
+    const [address, setAddress] = useState("");
     const [status, setStatus] = useState("");
     const [saving, setSaving] = useState(false);
     const [editedItems, setEditedItems] = useState<EnquiryItem[]>([]);
@@ -88,7 +90,7 @@ export default function EnquiriesPage() {
 
     // Generate Quotation state
     const [localBillOpen, setLocalBillOpen] = useState(false);
-    const [localBillForm, setLocalBillForm] = useState({ company_name: '', customer_name: '', email: '', phone: '' });
+    const [localBillForm, setLocalBillForm] = useState({ company_name: '', customer_name: '', email: '', phone: '', address: '' });
     const [localBillItems, setLocalBillItems] = useState<EnquiryItem[]>([]);
     const [creatingBill, setCreatingBill] = useState(false);
     
@@ -145,7 +147,7 @@ export default function EnquiriesPage() {
             if (data.success) {
                 toast.success("Quotation generated", { id: toastId });
                 setLocalBillOpen(false);
-                setLocalBillForm({ company_name: '', customer_name: '', email: '', phone: '' });
+                setLocalBillForm({ company_name: '', customer_name: '', email: '', phone: '', address: '' });
                 setLocalBillItems([]);
                 fetchEnquiries();
             } else {
@@ -189,6 +191,7 @@ export default function EnquiriesPage() {
         setSelectedEnquiry(enquiry);
         setAdminNotes(enquiry.admin_notes || "");
         setQuotedAmount(enquiry.quoted_amount?.toString() || "");
+        setAddress(enquiry.address || "");
         setStatus(enquiry.status);
         
         const itemsToEdit = enquiry.items ? structuredClone(enquiry.items) : [];
@@ -214,6 +217,7 @@ export default function EnquiriesPage() {
                 body: JSON.stringify({ 
                     admin_notes: adminNotes, 
                     quoted_amount: quotedAmount ? parseFloat(quotedAmount) : null, 
+                    address: address,
                     status: status,
                     items: editedItems
                 }),
@@ -504,6 +508,10 @@ export default function EnquiriesPage() {
                                             </div>
                                         </div>
                                         <div>
+                                            <Label htmlFor="address">Address</Label>
+                                            <Textarea id="address" placeholder="Customer address..." value={address} onChange={(e) => setAddress(e.target.value)} rows={2} className="mt-1.5" />
+                                        </div>
+                                        <div>
                                             <Label htmlFor="admin_notes">Admin Notes</Label>
                                             <Textarea id="admin_notes" placeholder="Internal notes about this enquiry..." value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} rows={3} className="mt-1.5" />
                                         </div>
@@ -607,6 +615,10 @@ export default function EnquiriesPage() {
                                     <Label htmlFor="lb_phone">Phone</Label>
                                     <Input id="lb_phone" value={localBillForm.phone} onChange={(e) => setLocalBillForm({...localBillForm, phone: e.target.value})} placeholder="Phone number" />
                                 </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="lb_address">Address (Optional)</Label>
+                                <Textarea id="lb_address" value={localBillForm.address} onChange={(e) => setLocalBillForm({...localBillForm, address: e.target.value})} placeholder="Customer address" rows={2} />
                             </div>
                             
                             <div className="pt-4 border-t">

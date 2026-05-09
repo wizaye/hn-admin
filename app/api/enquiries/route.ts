@@ -73,19 +73,20 @@ export async function POST(request: Request) {
         const customerName = body.customer_name || '';
         const email = body.email || '';
         const phone = body.phone || '';
+        const address = body.address || '';
         const status = body.status || 'pending';
         const quotedAmount = body.total_amount ? parseFloat(body.total_amount) : null;
         
         const sql = `
             INSERT INTO enquiries (
-                customer_name, company_name, email, phone, 
+                customer_name, company_name, email, phone, address,
                 status, quoted_amount, items, total_items, delivery_timeline, customization_notes, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
         `;
         
         const params = [
-            customerName, companyName, email, phone, status, quotedAmount, JSON.stringify(body.items || []), body.items?.length || 0, 'Immediate', ''
+            customerName, companyName, email, phone, address, status, quotedAmount, JSON.stringify(body.items || []), body.items?.length || 0, 'Immediate', ''
         ];
         
         const result = await queryD1(sql, params);
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
                         company_name: companyName,
                         email: email,
                         phone: phone,
+                        address: address,
                         status: status,
                         quoted_amount: quotedAmount,
                         delivery_timeline: 'Immediate',

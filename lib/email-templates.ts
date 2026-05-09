@@ -1,4 +1,25 @@
-import { LOGO_BASE64, TEXT_BASE64 } from '@/lib/logo';
+import { getLogoBuffer, getTextBuffer } from '@/lib/logo';
+
+export function getInlineImages() {
+  const attachments: any[] = [];
+  const logoBuffer = getLogoBuffer();
+  if (logoBuffer) {
+    attachments.push({
+      filename: 'logo.jpg',
+      content: logoBuffer,
+      content_id: 'logo'
+    });
+  }
+  const textBuffer = getTextBuffer();
+  if (textBuffer) {
+    attachments.push({
+      filename: 'text.jpg',
+      content: textBuffer,
+      content_id: 'text_image'
+    });
+  }
+  return attachments;
+}
 
 interface QuotationEmailData {
   name: string;
@@ -32,8 +53,8 @@ export function getQuotationEmail(data: QuotationEmailData, enquiryId: number) {
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width: 650px; margin: 0 auto; background-color: #ffffff;">
     <tr>
       <td style="padding: 40px 30px 30px; border-bottom: 3px solid #000000; text-align: center;">
-        ${LOGO_BASE64 ? `<img src="${LOGO_BASE64}" alt="Logo" style="width: 80px; height: auto; margin-bottom: 10px;" /><br/>` : ''}
-        ${TEXT_BASE64 ? `<img src="${TEXT_BASE64}" alt="Hyderabad Network" style="max-width: 250px; height: auto;" />` : `<h1 style="margin: 0; color: #000000; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Hyderabad Network</h1>`}
+        <img src="cid:logo" alt="Logo" style="width: 80px; height: auto; margin-bottom: 10px;" /><br/>
+        <img src="cid:text_image" alt="Hyderabad Network" style="max-width: 250px; height: auto;" />
         <p style="margin: 8px 0 0; color: #666666; font-size: 15px; font-weight: 400;">
           (Distributor of ajanta orpat group)
         </p>
@@ -145,8 +166,8 @@ export function getStatusUpdateEmail(data: StatusUpdateEmailData, enquiryId: num
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width: 650px; margin: 0 auto; background-color: #ffffff;">
     <tr>
       <td style="padding: 40px 30px 30px; border-bottom: 3px solid #000000; text-align: center;">
-        ${LOGO_BASE64 ? `<img src="${LOGO_BASE64}" alt="Logo" style="width: 80px; height: auto; margin-bottom: 10px;" /><br/>` : ''}
-        ${TEXT_BASE64 ? `<img src="${TEXT_BASE64}" alt="Hyderabad Network" style="max-width: 250px; height: auto;" />` : `<h1 style="margin: 0; color: #000000; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Hyderabad Network</h1>`}
+        <img src="cid:logo" alt="Logo" style="width: 80px; height: auto; margin-bottom: 10px;" /><br/>
+        <img src="cid:text_image" alt="Hyderabad Network" style="max-width: 250px; height: auto;" />
         <p style="margin: 8px 0 0; color: #666666; font-size: 15px; font-weight: 400;">
           (Distributor of ajanta orpat group)
         </p>
